@@ -120,7 +120,7 @@ func (a *SNMPArguments) String() string {
 // SNMP Object provides functions for the SNMP Client
 type SNMP struct {
 	conn   net.Conn
-	args   *SNMPArguments
+	Args   *SNMPArguments
 	engine *snmpEngine
 }
 
@@ -130,8 +130,8 @@ func (s *SNMP) Open() (err error) {
 		return
 	}
 
-	err = retry(int(s.args.Retries), func() error {
-		conn, e := net.DialTimeout(s.args.Network, s.args.Address, s.args.Timeout)
+	err = retry(int(s.Args.Retries), func() error {
+		conn, e := net.DialTimeout(s.Args.Network, s.Args.Address, s.Args.Timeout)
 		if e == nil {
 			s.conn = conn
 		}
@@ -141,7 +141,7 @@ func (s *SNMP) Open() (err error) {
 		return
 	}
 
-	s.engine = newSNMPEngine(s.args)
+	s.engine = newSNMPEngine(s.Args)
 	if err = s.engine.Discover(s); err != nil {
 		s.Close()
 	}
@@ -158,20 +158,20 @@ func (s *SNMP) Close() {
 }
 
 func (s *SNMP) GetRequest(oids Oids) (result Pdu, err error) {
-	pdu := NewPduWithOids(s.args.Version, GetRequest, oids)
+	pdu := NewPduWithOids(s.Args.Version, GetRequest, oids)
 	return s.sendPdu(pdu)
 }
 
 func (s *SNMP) GetNextRequest(oids Oids) (result Pdu, err error) {
-	pdu := NewPduWithOids(s.args.Version, GetNextRequest, oids)
+	pdu := NewPduWithOids(s.Args.Version, GetNextRequest, oids)
 	return s.sendPdu(pdu)
 }
 
 func (s *SNMP) GetBulkRequest(oids Oids, nonRepeaters, maxRepetitions int) (result Pdu, err error) {
 
-	if s.args.Version < V2c {
+	if s.Args.Version < V2c {
 		return nil, &ArgumentError{
-			Value:   s.args.Version,
+			Value:   s.Args.Version,
 			Message: "Unsupported SNMP Version",
 		}
 	}
@@ -189,7 +189,7 @@ func (s *SNMP) GetBulkRequest(oids Oids, nonRepeaters, maxRepetitions int) (resu
 		}
 	}
 
-	pdu := NewPduWithOids(s.args.Version, GetBulkRequest, oids)
+	pdu := NewPduWithOids(s.Args.Version, GetBulkRequest, oids)
 	pdu.SetNonrepeaters(nonRepeaters)
 	pdu.SetMaxRepetitions(maxRepetitions)
 	return s.sendPdu(pdu)
@@ -263,7 +263,7 @@ func (s *SNMP) GetBulkWalk(oids Oids, nonRepeaters, maxRepetitions int) (result 
 	}
 
 	resBinds = append(nonRepBinds, resBinds.Sort().Uniq()...)
-	return NewPduWithVarBinds(s.args.Version, GetResponse, resBinds), nil
+	return NewPduWithVarBinds(s.Args.Version, GetResponse, resBinds), nil
 }
 
 func (s *SNMP) V2Trap(varBinds VarBinds) error {
@@ -286,11 +286,11 @@ func (s *SNMP) V2TrapWithBootsTime(varBinds VarBinds, eBoots, eTime int) error {
 	}
 
 	defer func() {
-		s.args.authEngineBoots = 0
-		s.args.authEngineTime = 0
+		s.Args.authEngineBoots = 0
+		s.Args.authEngineTime = 0
 	}()
-	s.args.authEngineBoots = eBoots
-	s.args.authEngineTime = eTime
+	s.Args.authEngineBoots = eBoots
+	s.Args.authEngineTime = eTime
 	return s.v2trap(SNMPTrapV2, varBinds)
 }
 
@@ -299,14 +299,14 @@ func (s *SNMP) InformRequest(varBinds VarBinds) error {
 }
 
 func (s *SNMP) v2trap(pduType PduType, varBinds VarBinds) (err error) {
-	if s.args.Version < V2c {
+	if s.Args.Version < V2c {
 		return &ArgumentError{
-			Value:   s.args.Version,
+			Value:   s.Args.Version,
 			Message: "Unsupported SNMP Version",
 		}
 	}
 
-	pdu := NewPduWithVarBinds(s.args.Version, pduType, varBinds)
+	pdu := NewPduWithVarBinds(s.Args.Version, pduType, varBinds)
 	_, err = s.sendPdu(pdu)
 	return
 }
@@ -316,8 +316,8 @@ func (s *SNMP) sendPdu(pdu Pdu) (result Pdu, err error) {
 		return
 	}
 
-	retry(int(s.args.Retries), func() error {
-		result, err = s.engine.SendPdu(pdu, s.conn, s.args)
+	retry(int(s.Args.Retries), func() error {
+		result, err = s.engine.SendPdu(pdu, s.conn, s.Args)
 		return err
 	})
 	return
@@ -325,18 +325,18 @@ func (s *SNMP) sendPdu(pdu Pdu) (result Pdu, err error) {
 
 func (s *SNMP) String() string {
 	if s.conn == nil {
-		return fmt.Sprintf(`{"conn": false, "args": %s, "engine": null}`, s.args.String())
+		return fmt.Sprintf(`{"conn": false, "Args": %s, "engine": null}`, s.Args.String())
 	} else {
-		return fmt.Sprintf(`{"conn": true, "args": %s, "engine": %s}`,
-			s.args.String(), s.engine.String())
+		return fmt.Sprintf(`{"conn": true, "Args": %s, "engine": %s}`,
+			s.Args.String(), s.engine.String())
 	}
 }
 
 // Create a SNMP Object
-func NewSNMP(args SNMPArguments) (*SNMP, error) {
-	if err := args.validate(); err != nil {
+func NewSNMP(Args SNMPArguments) (*SNMP, error) {
+	if err := Args.validate(); err != nil {
 		return nil, err
 	}
-	args.setDefault()
-	return &SNMP{args: &args}, nil
+	Args.setDefault()
+	return &SNMP{Args: &Args}, nil
 }
