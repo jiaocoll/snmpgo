@@ -296,8 +296,8 @@ func (u *usm) ProcessIncomingMessage(recvMsg message) (err error) {
 }
 
 func (u *usm) Discover(snmp *SNMP) (err error) {
-	if snmp.args.SecurityEngineId != "" {
-		securityEngineId, _ := engineIdToBytes(snmp.args.SecurityEngineId)
+	if snmp.Args.SecurityEngineId != "" {
+		securityEngineId, _ := engineIdToBytes(snmp.Args.SecurityEngineId)
 		u.SetAuthEngineId(securityEngineId)
 		u.DiscoveryStatus = noSynchronized
 		return
@@ -305,21 +305,21 @@ func (u *usm) Discover(snmp *SNMP) (err error) {
 
 	if u.DiscoveryStatus == noDiscovered {
 		// Send an empty Pdu with the NoAuthNoPriv
-		orgSecLevel := snmp.args.SecurityLevel
-		snmp.args.SecurityLevel = NoAuthNoPriv
+		orgSecLevel := snmp.Args.SecurityLevel
+		snmp.Args.SecurityLevel = NoAuthNoPriv
 
-		pdu := NewPdu(snmp.args.Version, GetRequest)
+		pdu := NewPdu(snmp.Args.Version, GetRequest)
 		_, err = snmp.sendPdu(pdu)
 
-		snmp.args.SecurityLevel = orgSecLevel
+		snmp.Args.SecurityLevel = orgSecLevel
 		if err != nil {
 			return
 		}
 	}
 
-	if u.DiscoveryStatus == noSynchronized && snmp.args.SecurityLevel > NoAuthNoPriv {
+	if u.DiscoveryStatus == noSynchronized && snmp.Args.SecurityLevel > NoAuthNoPriv {
 		// Send an empty Pdu
-		pdu := NewPdu(snmp.args.Version, GetRequest)
+		pdu := NewPdu(snmp.Args.Version, GetRequest)
 		_, err = snmp.sendPdu(pdu)
 		if err != nil {
 			return
@@ -584,24 +584,24 @@ func passwordToKey(proto AuthProtocol, password string, engineId []byte) []byte 
 	return h.Sum(nil)
 }
 
-func newSecurity(args *SNMPArguments) security {
-	switch args.Version {
+func newSecurity(Args *SNMPArguments) security {
+	switch Args.Version {
 	case V1, V2c:
 		return &community{
-			Community: []byte(args.Community),
+			Community: []byte(Args.Community),
 		}
 	case V3:
 		sec := &usm{
-			UserName: []byte(args.UserName),
+			UserName: []byte(Args.UserName),
 		}
-		switch args.SecurityLevel {
+		switch Args.SecurityLevel {
 		case AuthPriv:
-			sec.PrivPassword = args.PrivPassword
-			sec.PrivProtocol = args.PrivProtocol
+			sec.PrivPassword = Args.PrivPassword
+			sec.PrivProtocol = Args.PrivProtocol
 			fallthrough
 		case AuthNoPriv:
-			sec.AuthPassword = args.AuthPassword
-			sec.AuthProtocol = args.AuthProtocol
+			sec.AuthPassword = Args.AuthPassword
+			sec.AuthProtocol = Args.AuthProtocol
 		}
 		return sec
 	default:
